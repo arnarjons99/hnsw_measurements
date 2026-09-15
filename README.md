@@ -16,3 +16,24 @@ Connects on `localhost:5432`, user/db/password all `hnsw`. Tear down with:
 docker compose -f docker/docker-compose.yml down
 ```
 
+## Datasets
+
+Gitignored — download and extract before running anything:
+
+```bash
+mkdir -p data/sift1m data/glove
+
+curl -o data/sift1m/sift.tar.gz ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz
+tar -xzf data/sift1m/sift.tar.gz --strip-components=1 -C data/sift1m
+
+curl -L -o data/glove/glove.2024.wikigiga.300d.zip https://nlp.stanford.edu/data/wordvecs/glove.2024.wikigiga.300d.zip
+unzip data/glove/glove.2024.wikigiga.300d.zip -d data/glove
+```
+
+## Python environment
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e .
+```
+
