@@ -5,6 +5,8 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "faiss-cpu",
+    "psycopg[binary]",
+    "pgvector",
 ]
 
 [build-system]
