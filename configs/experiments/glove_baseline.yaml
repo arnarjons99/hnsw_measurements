@@ -1,0 +1,4 @@
+# Overrides base.yaml. Cosine is conventional for GloVe-style word
+# embeddings - PLAN.md Sec 11 item 2, still worth confirming with Pavlo.
+dataset: glove
+distance_metric: cosine
