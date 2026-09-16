@@ -4,6 +4,7 @@ PLAN.md Sec 6/7 for the file layout this implements.
 """
 
 import csv
+import hashlib
 import json
 import os
 from dataclasses import asdict
@@ -45,14 +46,26 @@ class ResultsWriter:
     def __init__(self, run_dir: Path, config: ExperimentConfig, metadata: dict) -> None:
         self.run_dir = run_dir
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "config.yaml").write_text(yaml.safe_dump(asdict(config)))
-        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
+        config_hash = hashlib.sha256(
+            json.dumps(asdict(config), sort_keys=True).encode()
+        ).hexdigest()
         status_path = run_dir / "status.json"
         if status_path.exists():
             self._status: dict = json.loads(status_path.read_text())
+            existing_hash = self._status.get("config_hash")
+            if existing_hash is not None and existing_hash != config_hash:
+                raise ValueError(
+                    f"{run_dir} already has results from a different config "
+                    "(params changed since this run-id was last used) - use a "
+                    "different --run-id or delete the directory to start fresh"
+                )
         else:
             self._status = {"completed_repetitions": []}
+        self._status["config_hash"] = config_hash
+
+        (run_dir / "config.yaml").write_text(yaml.safe_dump(asdict(config)))
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
         self._measurements = self._open_pruned(
             run_dir / "measurements.csv", MEASUREMENT_FIELDS
