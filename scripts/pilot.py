@@ -17,7 +17,6 @@ from hnsw_bench.datasets import partition_sift1m
 from hnsw_bench.db import connect
 from hnsw_bench.ground_truth import compute_ground_truth
 
-PILOT_SIZE = 50_000
 N_RECALL_QUERIES = 1_000  # matches the locked methodology's recall subset
 K = 10
 RESULTS_FILE = Path("results/pilot.csv")
@@ -46,12 +45,14 @@ def main() -> None:
     parser.add_argument("--m", type=int, default=16)
     parser.add_argument("--ef-construction", type=int, default=64)
     parser.add_argument("--ef-search", type=int, default=40)
+    parser.add_argument("--pilot-size", type=int, default=50_000)
     args = parser.parse_args()
+    pilot_size = args.pilot_size
 
-    print(f"Loading SIFT1M, taking first {PILOT_SIZE} of the active set...")
+    print(f"Loading SIFT1M, taking first {pilot_size} of the active set...")
     partition = partition_sift1m(Path("data/sift1m"))
-    pilot_vectors = partition.active[:PILOT_SIZE]
-    pilot_ids = partition.active_ids[:PILOT_SIZE]
+    pilot_vectors = partition.active[:pilot_size]
+    pilot_ids = partition.active_ids[:pilot_size]
     query = partition.query[:N_RECALL_QUERIES]
 
     print("Computing ground truth for this pilot subset...")
@@ -60,7 +61,7 @@ def main() -> None:
     conn = connect()
     cur = conn.cursor()
 
-    print(f"Loading {PILOT_SIZE} vectors into Postgres...")
+    print(f"Loading {pilot_size} vectors into Postgres...")
     cur.execute("DROP TABLE IF EXISTS pilot")
     cur.execute("CREATE TABLE pilot (id BIGINT PRIMARY KEY, embedding VECTOR(128))")
     with cur.copy("COPY pilot (id, embedding) FROM STDIN") as copy:
@@ -105,7 +106,7 @@ def main() -> None:
             "m": args.m,
             "ef_construction": args.ef_construction,
             "ef_search": args.ef_search,
-            "pilot_size": PILOT_SIZE,
+            "pilot_size": pilot_size,
             "build_s": round(build_s, 3),
             "recall_at_10": round(recall_mean, 4),
             "latency_p50_ms": round(p50, 3),
