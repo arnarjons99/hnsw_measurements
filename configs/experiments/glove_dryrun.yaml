@@ -1,0 +1,9 @@
+# Tiny config to smoke-test the GloVe path through the full pipeline.
+# Mirrors sift1m_dryrun.yaml - see PLAN.md Sec 7.
+dataset: glove
+distance_metric: cosine
+active_size: 2000
+rounds: 2
+repetitions: 1
+n_recall_queries: 50
+n_latency_queries: 200
