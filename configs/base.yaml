@@ -1,0 +1,15 @@
+# Shared across every experiment - dataset-agnostic per PLAN.md Sec 11
+# (values frozen in Stage 2 pilot / Resolved 2026-09-16). Per-dataset
+# files in experiments/ override dataset and distance_metric.
+seed: 42
+active_size: 500000
+churn_pct: 10
+rounds: 5
+repetitions: 3
+maintenance: none
+m: 16
+ef_construction: 64
+ef_search: 80
+k: 10
+n_recall_queries: 1000
+n_latency_queries: 10000

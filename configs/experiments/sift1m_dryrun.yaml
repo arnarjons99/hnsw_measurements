@@ -1,0 +1,9 @@
+# Tiny config to smoke-test the full pipeline in seconds. See PLAN.md
+# Sec 7 - dry-run mode is mandatory practice before any real overnight run.
+dataset: sift1m
+distance_metric: l2
+active_size: 2000
+rounds: 2
+repetitions: 1
+n_recall_queries: 50
+n_latency_queries: 200

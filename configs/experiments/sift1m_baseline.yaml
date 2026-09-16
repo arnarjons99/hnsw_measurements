@@ -1,0 +1,3 @@
+# Overrides base.yaml. SIFT1M is conventionally evaluated with L2.
+dataset: sift1m
+distance_metric: l2

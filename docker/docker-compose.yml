@@ -1,0 +1,40 @@
+# Postgres 18.6 + pgvector 0.8.6, pinned by digest so results stay
+# reproducible even if the tag is later overwritten upstream.
+
+# Explicit so Docker Desktop shows a meaningful project name instead of
+# defaulting to this directory's basename ("docker").
+name: hnsw_measurements
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+    container_name: hnsw_pg
+    environment:
+      POSTGRES_USER: hnsw
+      POSTGRES_PASSWORD: hnsw
+      POSTGRES_DB: hnsw
+    ports:
+      - "${HNSW_PG_PORT:-5432}:5432"
+    volumes:
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      # Mount the parent, not .../data — Postgres 18's image manages its
+      # own version subdirectory. See docker-library/postgres#1259.
+      - pgdata:/var/lib/postgresql
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    # Docker's 64MB default is too small for HNSW builds/REINDEX.
+    shm_size: "1gb"
+    # Half this dev host's 16GB/8 CPUs; re-check on whichever machine
+    # hosts the real Stage 4 runs.
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hnsw -d hnsw"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
