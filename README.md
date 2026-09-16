@@ -55,5 +55,11 @@ Then a real run:
 .venv/bin/python -m hnsw_bench.run configs/experiments/glove_baseline.yaml
 ```
 
+## Live monitor
 
+A Streamlit dashboard to launch runs and watch progress/recall/latency live, reading the same `results/` files
 
+```bash
+.venv/bin/pip install -e ".[ui]"
+.venv/bin/streamlit run ui/streamlit_app.py
+```

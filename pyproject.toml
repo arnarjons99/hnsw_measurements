@@ -10,6 +10,9 @@ dependencies = [
     "pyyaml",
 ]
 
+[project.optional-dependencies]
+ui = ["streamlit", "pandas", "psutil"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
