@@ -48,22 +48,49 @@ class ResultsWriter:
         (run_dir / "config.yaml").write_text(yaml.safe_dump(asdict(config)))
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
-        self._measurements = open(run_dir / "measurements.csv", "a", newline="")
+        status_path = run_dir / "status.json"
+        if status_path.exists():
+            self._status: dict = json.loads(status_path.read_text())
+        else:
+            self._status = {"completed_repetitions": []}
+
+        self._measurements = self._open_pruned(
+            run_dir / "measurements.csv", MEASUREMENT_FIELDS
+        )
         self._measurements_writer = csv.DictWriter(
             self._measurements, fieldnames=MEASUREMENT_FIELDS, restval=""
         )
         if self._measurements.tell() == 0:
             self._measurements_writer.writeheader()
 
-        self._queries = open(run_dir / "queries.csv", "a", newline="")
+        self._queries = self._open_pruned(run_dir / "queries.csv", QUERY_FIELDS)
         self._queries_writer = csv.DictWriter(
             self._queries, fieldnames=QUERY_FIELDS, restval=""
         )
         if self._queries.tell() == 0:
             self._queries_writer.writeheader()
 
-        self._status: dict = {"completed_repetitions": []}
         self._write_status()
+
+    @property
+    def completed_repetitions(self) -> set[int]:
+        return set(self._status["completed_repetitions"])
+
+    def _open_pruned(self, path: Path, fields: list[str]):
+        """On resume, drop rows from a repetition that crashed mid-way so its
+        redo isn't mixed with stale partial rows - PLAN.md Sec 7 resume policy."""
+        if path.exists():
+            with open(path, newline="") as f:
+                kept = [
+                    row
+                    for row in csv.DictReader(f)
+                    if int(row["repetition"]) in self.completed_repetitions
+                ]
+            with open(path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=fields, restval="")
+                writer.writeheader()
+                writer.writerows(kept)
+        return open(path, "a", newline="")
 
     def write_measurement(self, row: dict) -> None:
         self._measurements_writer.writerow(row)

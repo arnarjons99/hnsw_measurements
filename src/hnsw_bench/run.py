@@ -80,6 +80,9 @@ def main() -> None:
     print(f"Running experiment with {config.repetitions} repetitions...")
     writer = ResultsWriter(run_dir, config, collect_metadata())
     for repetition in range(config.repetitions):
+        if repetition in writer.completed_repetitions:
+            print(f"\n=== repetition {repetition + 1}/{config.repetitions} already complete, skipping ===")
+            continue
         print(f"\n=== repetition {repetition + 1}/{config.repetitions} ===")
         run_repetition(config, partition, writer, repetition)
     writer.close()
