@@ -37,3 +37,13 @@ python3 -m venv .venv
 .venv/bin/pip install -e .
 ```
 
+## Running an experiment
+
+Results land in `results/<run_id>/` (`--run-id` to name it yourself). **Try `configs/experiments/sift1m_dryrun.yaml` first** - it runs the full pipeline on 2,000 vectors in seconds.
+
+```bash
+.venv/bin/python -m hnsw_bench.run configs/experiments/sift1m_baseline.yaml
+```
+
+
+
