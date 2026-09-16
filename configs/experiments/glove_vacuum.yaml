@@ -1,0 +1,4 @@
+# Overrides base.yaml. GloVe, VACUUM-only maintenance condition.
+dataset: glove
+distance_metric: cosine
+maintenance: vacuum

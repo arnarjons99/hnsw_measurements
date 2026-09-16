@@ -20,7 +20,9 @@ from hnsw_bench.results_writer import ResultsWriter
 PARTITIONERS = {"sift1m": partition_sift1m, "glove": partition_glove}
 DATA_PATHS = {
     "sift1m": Path("data/sift1m"),
-    "glove": Path("data/glove/glove.2024.wikigiga.300d.txt"),
+    "glove": Path(
+        "data/glove/wiki_giga_2024_300_MFT20_vectors_seed_2024_alpha_0.75_eta_0.05_combined.txt"
+    ),
 }
 
 
@@ -80,6 +82,9 @@ def main() -> None:
     print(f"Running experiment with {config.repetitions} repetitions...")
     writer = ResultsWriter(run_dir, config, collect_metadata())
     for repetition in range(config.repetitions):
+        if repetition in writer.completed_repetitions:
+            print(f"\n=== repetition {repetition + 1}/{config.repetitions} already complete, skipping ===")
+            continue
         print(f"\n=== repetition {repetition + 1}/{config.repetitions} ===")
         run_repetition(config, partition, writer, repetition)
     writer.close()

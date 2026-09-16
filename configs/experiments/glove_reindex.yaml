@@ -1,0 +1,4 @@
+# Overrides base.yaml. GloVe, REINDEX-only maintenance condition.
+dataset: glove
+distance_metric: cosine
+maintenance: reindex

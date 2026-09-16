@@ -30,6 +30,8 @@ curl -L -o data/glove/glove.2024.wikigiga.300d.zip https://nlp.stanford.edu/data
 unzip data/glove/glove.2024.wikigiga.300d.zip -d data/glove
 ```
 
+The zip extracts to `wiki_giga_2024_300_MFT20_vectors_seed_2024_alpha_0.75_eta_0.05_combined.txt`, not a name matching the zip - that's the path `DATA_PATHS["glove"]` in `run.py` points at. First load parses ~1.29M lines in pure Python (~15min) and caches a `.npy` + `.words.txt` next to it; every load after that is near-instant.
+
 ## Python environment
 
 ```bash
@@ -39,10 +41,18 @@ python3 -m venv .venv
 
 ## Running an experiment
 
-Results land in `results/<run_id>/` (`--run-id` to name it yourself). **Try `configs/experiments/sift1m_dryrun.yaml` first** - it runs the full pipeline on 2,000 vectors in seconds.
+Results land in `results/<run_id>/` (`--run-id` to name it yourself). **Try the dry-run configs first** - each runs the full pipeline on 2,000 vectors in seconds:
+
+```bash
+.venv/bin/python -m hnsw_bench.run configs/experiments/sift1m_dryrun.yaml --run-id sift1m_pilot
+.venv/bin/python -m hnsw_bench.run configs/experiments/glove_dryrun.yaml --run-id glove_pilot
+```
+
+Then a real run:
 
 ```bash
 .venv/bin/python -m hnsw_bench.run configs/experiments/sift1m_baseline.yaml
+.venv/bin/python -m hnsw_bench.run configs/experiments/glove_baseline.yaml
 ```
 
 
