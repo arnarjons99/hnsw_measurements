@@ -1,0 +1,4 @@
+# Overrides base.yaml. SIFT1M, VACUUM-only maintenance condition.
+dataset: sift1m
+distance_metric: l2
+maintenance: vacuum
