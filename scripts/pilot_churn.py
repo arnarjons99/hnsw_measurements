@@ -25,13 +25,24 @@ N_RECALL_QUERIES = 1_000  # matches the locked methodology's recall subset
 K = 10
 M, EF_CONSTRUCTION, EF_SEARCH = 16, 64, 80  # frozen from the param-sweep pilot
 RESULTS_FILE = Path("results/pilot_churn.csv")
+# Wide header so every row has the same shape
+FIELDNAMES = [
+    "phase",
+    "recall_at_10",
+    "latency_p50_ms",
+    "latency_p95_ms",
+    "delete_s",
+    "insert_s",
+    "vacuum_s",
+    "reindex_s",
+]
 
 
 def append_result(row: dict) -> None:
     RESULTS_FILE.parent.mkdir(exist_ok=True)
     is_new = not RESULTS_FILE.exists()
     with open(RESULTS_FILE, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         if is_new:
             writer.writeheader()
         writer.writerow(row)
