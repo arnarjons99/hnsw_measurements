@@ -30,3 +30,11 @@ def compute_ground_truth(
         sim, ids = index.search(query_n, k)
         return ids, 1.0 - sim
     raise ValueError(f"unknown metric: {metric!r}")
+
+
+def recall_at_k(returned_dists: np.ndarray, true_dists: np.ndarray, k: int) -> float:
+    # Distance-threshold, tie-tolerant recall (PLAN.md Eq. 1), not ID
+    # overlap: any returned point within the k-th true neighbor's distance
+    # counts, so boundary ties don't get unfairly penalized.
+    threshold = true_dists[k - 1] + 1e-4
+    return float((returned_dists <= threshold).sum()) / k

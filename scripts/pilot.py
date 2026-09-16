@@ -12,22 +12,15 @@ import time
 from pathlib import Path
 
 import numpy as np
+from psycopg import sql
 
 from hnsw_bench.datasets import partition_sift1m
 from hnsw_bench.db import connect
-from hnsw_bench.ground_truth import compute_ground_truth
+from hnsw_bench.ground_truth import compute_ground_truth, recall_at_k
 
 N_RECALL_QUERIES = 1_000  # matches the locked methodology's recall subset
 K = 10
 RESULTS_FILE = Path("results/pilot.csv")
-
-
-def recall_at_k(returned_dists: np.ndarray, true_dists: np.ndarray, k: int) -> float:
-    # Distance-threshold, tie-tolerant recall (PLAN.md Eq. 1), not ID
-    # overlap: any returned point within the k-th true neighbor's distance
-    # counts, so boundary ties don't get unfairly penalized.
-    threshold = true_dists[k - 1] + 1e-4
-    return float((returned_dists <= threshold).sum()) / k
 
 
 def append_result(row: dict) -> None:
@@ -68,16 +61,20 @@ def main() -> None:
         for vec_id, vec in zip(pilot_ids, pilot_vectors):
             copy.write_row((int(vec_id), vec))
 
-    print(f"Building HNSW index (m={args.m}, ef_construction={args.ef_construction})...")
+    print(
+        f"Building HNSW index (m={args.m}, ef_construction={args.ef_construction})..."
+    )
     t0 = time.perf_counter()
     cur.execute(
-        f"CREATE INDEX ON pilot USING hnsw (embedding vector_l2_ops) "
-        f"WITH (m = {args.m}, ef_construction = {args.ef_construction})"
+        sql.SQL(
+            "CREATE INDEX ON pilot USING hnsw (embedding vector_l2_ops) "
+            "WITH (m = {}, ef_construction = {})"
+        ).format(sql.Literal(args.m), sql.Literal(args.ef_construction))
     )
     build_s = time.perf_counter() - t0
     print(f"  build time: {build_s:.2f}s")
 
-    cur.execute(f"SET hnsw.ef_search = {args.ef_search}")
+    cur.execute(sql.SQL("SET hnsw.ef_search = {}").format(sql.Literal(args.ef_search)))
 
     print(f"Running {N_RECALL_QUERIES} queries...")
     recalls = []
