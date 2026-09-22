@@ -15,10 +15,14 @@ import yaml
 
 from hnsw_bench.config import ExperimentConfig
 
+# Timestamps are UTC ISO-8601. Every *_s duration has a matching *_start, so
+# an operation can be placed on a wall clock and not just measured.
 MEASUREMENT_FIELDS = [
     "repetition",
     "round",
     "phase",
+    "checkpoint_start",
+    "checkpoint_end",
     "recall_at_10",
     "latency_p50_ms",
     "latency_p95_ms",
@@ -30,12 +34,22 @@ MEASUREMENT_FIELDS = [
     "insert_s",
     "vacuum_s",
     "reindex_s",
+    "warmup_start",
+    "warmup_end",
+    "measured_start",
+    "measured_end",
+    "delete_start",
+    "insert_start",
+    "vacuum_start",
+    "reindex_start",
 ]
+# t_offset_ms is milliseconds from this checkpoint's measured_start.
 QUERY_FIELDS = [
     "repetition",
     "round",
     "phase",
     "query_index",
+    "t_offset_ms",
     "latency_ms",
     "true_dist_k",
     "returned_dists",
