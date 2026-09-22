@@ -4,6 +4,7 @@ maintenance rules follow the PLAN.md Sec 11 resolutions.
 """
 
 import time
+from datetime import datetime, timezone
 from typing import LiteralString, cast
 
 import numpy as np
@@ -17,6 +18,10 @@ from hnsw_bench.metrics import collect_metrics
 from hnsw_bench.results_writer import ResultsWriter
 
 DIST_OPS = {"l2": ("vector_l2_ops", "<->"), "cosine": ("vector_cosine_ops", "<=>")}
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def build_index(
@@ -50,18 +55,21 @@ def build_index(
 
 def run_queries(
     cur, op: str, queries: np.ndarray, k: int
-) -> list[tuple[float, np.ndarray]]:
-    """Returns (latency_ms, returned_dists) for each query, in order."""
+) -> tuple[str, list[tuple[float, float, np.ndarray]]]:
+    """Returns (pass_start, rows), each row (offset_ms, latency_ms, returned_dists).
+    One wall-clock read per pass; per-query times stay on the monotonic clock."""
     query_sql = sql.SQL(
         "SELECT embedding {} %s AS dist FROM active ORDER BY dist LIMIT %s"
     ).format(sql.SQL(cast(LiteralString, op)))
+    pass_start, perf_origin = _now(), time.perf_counter()
     results = []
     for q in queries:
         t0 = time.perf_counter()
         cur.execute(query_sql, (q, k))
         returned_dists = np.array([row[0] for row in cur.fetchall()])
-        results.append(((time.perf_counter() - t0) * 1000, returned_dists))
-    return results
+        t1 = time.perf_counter()
+        results.append(((t0 - perf_origin) * 1000, (t1 - t0) * 1000, returned_dists))
+    return pass_start, results
 
 
 def measure(
@@ -80,11 +88,13 @@ def measure(
     )
 
     # warm up and discard the first pass, then measure the second pass
-    run_queries(cur, op, latency_query, config.k)
-    measured = run_queries(cur, op, latency_query, config.k)
+    warmup_start, _ = run_queries(cur, op, latency_query, config.k)
+    warmup_end = _now()
+    measured_start, measured = run_queries(cur, op, latency_query, config.k)
+    measured_end = _now()
 
     latencies, recalls, query_rows = [], [], []
-    for i, (latency_ms, returned_dists) in enumerate(measured):
+    for i, (offset_ms, latency_ms, returned_dists) in enumerate(measured):
         latencies.append(latency_ms)
         true_dist_k = None
         if i < n_recall:
@@ -93,6 +103,7 @@ def measure(
         query_rows.append(
             {
                 "query_index": i,
+                "t_offset_ms": round(offset_ms, 4),
                 "latency_ms": round(latency_ms, 4),
                 "true_dist_k": true_dist_k,
                 "returned_dists": ",".join(f"{d:.6f}" for d in returned_dists),
@@ -105,6 +116,10 @@ def measure(
         "latency_p50_ms": float(np.percentile(latencies_arr, 50)),
         "latency_p95_ms": float(np.percentile(latencies_arr, 95)),
         "latency_mean_ms": float(np.mean(latencies_arr)),
+        "warmup_start": warmup_start,
+        "warmup_end": warmup_end,
+        "measured_start": measured_start,
+        "measured_end": measured_end,
     }
     return summary, query_rows
 
@@ -112,10 +127,12 @@ def measure(
 def apply_maintenance(cur, condition: str) -> dict:
     durations = {}
     if condition in ("reindex", "reindex_vacuum"):
+        durations["reindex_start"] = _now()
         t0 = time.perf_counter()
         cur.execute("REINDEX INDEX active_hnsw_idx")
         durations["reindex_s"] = time.perf_counter() - t0
     if condition in ("vacuum", "reindex_vacuum"):
+        durations["vacuum_start"] = _now()
         t0 = time.perf_counter()
         cur.execute("VACUUM active")
         durations["vacuum_s"] = time.perf_counter() - t0
@@ -141,14 +158,17 @@ def run_repetition(
     cur = conn.cursor()
 
     def checkpoint(round_num: int, phase: str, extra: dict | None = None) -> None:
+        checkpoint_start = _now()
         summary, query_rows = measure(cur, config, active_vectors, latency_query)
         row = {
             "repetition": repetition,
             "round": round_num,
             "phase": phase,
+            "checkpoint_start": checkpoint_start,
             **summary,
             **collect_metrics(cur),
             **(extra or {}),
+            "checkpoint_end": _now(),
         }
         writer.write_measurement(row)
         writer.write_queries(
@@ -177,11 +197,13 @@ def run_repetition(
         insert_vectors = pool_vectors[insert_positions]
 
         # deleting
+        delete_start = _now()
         t0 = time.perf_counter()
         cur.execute("DELETE FROM active WHERE id = ANY(%s)", (delete_ids.tolist(),))
         delete_s = time.perf_counter() - t0
 
         # inserting
+        insert_start = _now()
         t0 = time.perf_counter()
         with cur.copy("COPY active (id, embedding) FROM STDIN") as copy:
             for vec_id, vec in zip(insert_ids, insert_vectors):
@@ -195,7 +217,14 @@ def run_repetition(
         active_vectors = np.concatenate([active_vectors[keep_mask], insert_vectors])
 
         checkpoint(
-            round_num, "post_churn", {"delete_s": delete_s, "insert_s": insert_s}
+            round_num,
+            "post_churn",
+            {
+                "delete_start": delete_start,
+                "delete_s": delete_s,
+                "insert_start": insert_start,
+                "insert_s": insert_s,
+            },
         )
 
         # apply maintenance if requested, then measure again
