@@ -4,7 +4,7 @@
 seed: 42
 active_size: 500000
 churn_pct: 10
-rounds: 5
+rounds: 10
 repetitions: 3
 maintenance: none
 m: 16
