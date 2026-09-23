@@ -7,12 +7,6 @@ from pathlib import Path
 import numpy as np
 
 
-def _debug(msg: str) -> None:
-    # flush=True so the last line survives an OOM kill.
-    rss_gb = int(Path("/proc/self/statm").read_text().split()[1]) * os.sysconf("SC_PAGE_SIZE") / 1e9
-    print(f"[debug rss={rss_gb:.2f}GB] {msg}", flush=True)
-
-
 class LazyRows:
     """Rows of `base` picked by `ids`, copied into memory only when indexed."""
 
@@ -62,15 +56,12 @@ def read_glove_text(path: Path) -> np.ndarray:
     vectors_cache = path.with_suffix(".npy")
     words_cache = path.with_suffix(".words.txt")
     if vectors_cache.exists() and words_cache.exists():
-        _debug(f"loading cached {vectors_cache}")
         return np.load(vectors_cache, mmap_mode="r")
 
-    _debug(f"no cache, counting lines in {path}")
     with open(path, encoding="utf-8") as f:
         dim = len(f.readline().rstrip("\n").split(" ")) - 1
         n_lines = 1 + sum(1 for _ in f)
-    _debug(f"{n_lines:,} lines, dim={dim}")
-
+        
     # Write to .partial and rename at the end, so a killed run leaves no valid-looking cache.
     vectors_tmp = vectors_cache.with_name(vectors_cache.name + ".partial")
     words_tmp = words_cache.with_name(words_cache.name + ".partial")
@@ -87,7 +78,7 @@ def read_glove_text(path: Path) -> np.ndarray:
                 out[row : row + filled] = batch
                 row, filled = row + filled, 0
                 if row % 100_000 == 0:
-                    _debug(f"parsed {row:,}/{n_lines:,} lines")
+                    print(f"parsed {row:,}/{n_lines:,} lines")
         out[row : row + filled] = batch[:filled]
         row += filled
     assert row == n_lines, f"{path}: expected {n_lines} lines, parsed {row}"
@@ -96,7 +87,7 @@ def read_glove_text(path: Path) -> np.ndarray:
 
     os.replace(words_tmp, words_cache)
     os.replace(vectors_tmp, vectors_cache)
-    _debug(f"wrote cache {vectors_cache}")
+    print(f"wrote cache {vectors_cache}")
     return np.load(vectors_cache, mmap_mode="r")
 
 
@@ -126,16 +117,16 @@ def partition_glove(
 ) -> Partition:
     """No upstream split exists, so active/replacement/query are all carved
     from the same flat vocabulary. See PLAN.md open item 7."""
-    _debug(f"partition_glove start: {glove_path}")
+    print(f"partition_glove start: {glove_path}")
     vectors = read_glove_text(glove_path)
-    _debug(f"vectors memmapped, shape={vectors.shape}")
+    print(f"vectors memmapped, shape={vectors.shape}")
     ids = np.arange(vectors.shape[0])
     np.random.default_rng(seed).shuffle(ids)
 
     query_ids = ids[:query_size]
     active_ids = ids[query_size : query_size + active_size]
     replacement_ids = ids[query_size + active_size :]
-    _debug(f"split: query={len(query_ids):,} active={len(active_ids):,} replacement={len(replacement_ids):,}")
+    print(f"split: query={len(query_ids):,} active={len(active_ids):,} replacement={len(replacement_ids):,}")
     partition = Partition(
         active=vectors[active_ids],
         active_ids=active_ids,
@@ -143,5 +134,5 @@ def partition_glove(
         replacement_pool_ids=replacement_ids,
         query=vectors[query_ids],
     )
-    _debug("partition_glove done")
+    print("partition_glove done")
     return partition

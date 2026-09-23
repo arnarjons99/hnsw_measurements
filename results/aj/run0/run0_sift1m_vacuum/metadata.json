@@ -1,0 +1,7 @@
+{
+  "git_sha": "c09e19ea843caabfbfceeebf1de640b92da8390b",
+  "hostname": "Arnar-MacBook",
+  "python_version": "3.13.12",
+  "postgres_version": "PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+  "pgvector_version": "0.8.6"
+}

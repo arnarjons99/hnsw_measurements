@@ -1,0 +1,14 @@
+active_size: 500000
+churn_pct: 10
+dataset: sift1m
+distance_metric: l2
+ef_construction: 64
+ef_search: 80
+k: 10
+m: 16
+maintenance: vacuum
+n_latency_queries: 10000
+n_recall_queries: 1000
+repetitions: 3
+rounds: 10
+seed: 42
