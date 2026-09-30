@@ -8,14 +8,14 @@ PYTHON=".venv/bin/python"
 export PYTHONUNBUFFERED=1
 
 CONFIGS=(
-    # "glove_baseline.yaml"
-    # "glove_vacuum.yaml"
+    "glove_baseline.yaml"
+    "glove_vacuum.yaml"
     "glove_reindex.yaml"
     "glove_reindex_vacuum.yaml"
-    # "sift1m_baseline.yaml"
-    # "sift1m_vacuum.yaml"
-    # "sift1m_reindex.yaml"
-    # "sift1m_reindex_vacuum.yaml"
+    "sift1m_baseline.yaml"
+    "sift1m_vacuum.yaml"
+    "sift1m_reindex.yaml"
+    "sift1m_reindex_vacuum.yaml"
 )
 
 for config in "${CONFIGS[@]}"; do
