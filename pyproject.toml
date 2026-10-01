@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 ui = ["streamlit", "pandas", "psutil"]
+analysis = ["pandas", "scipy", "statsmodels", "matplotlib", "seaborn"]
 
 [build-system]
 requires = ["setuptools>=68"]
