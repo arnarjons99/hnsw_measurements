@@ -59,17 +59,24 @@ for ds in DATASETS:
                              **mmm(rl[col] - r0[col], "change")))
 pd.DataFrame(summ).to_csv(OUT / "summary_table.csv", index=False)
 
-# ---- Recovery: share of the recall lost without maintenance that a strategy regains -----
+# ---- Recovery: recall regained vs no maintenance (primary), and as share of recall lost ---
+# Graph builds are independent across runs, so repetitions are not paired; the conservative
+# range is strategy min - baseline max .. strategy max - baseline min.
 rec = []
 for ds in DATASETS:
-    end = {s: series(ds, s).query("round == @LAST").recall_at_10.mean() for s in ORDER}
+    final = {s: series(ds, s).query("round == @LAST").recall_at_10 for s in ORDER}
     r0 = series(ds, "baseline").query("round == 0").recall_at_10.mean()
-    lost = r0 - end["baseline"]
+    base = final["baseline"]
+    lost = r0 - base.mean()
     for s in STRATS:
+        reg = final[s].mean() - base.mean()
         rec.append(dict(dataset=ds, strategy=s, round=LAST, recall_round0=r0,
-                        recall_no_maintenance=end["baseline"], recall_strategy=end[s],
-                        recall_lost=lost, recall_regained=end[s] - end["baseline"],
-                        recovery=(end[s] - end["baseline"]) / lost))
+                        recall_no_maintenance=base.mean(), recall_strategy=final[s].mean(),
+                        recall_strategy_min=final[s].min(), recall_strategy_max=final[s].max(),
+                        recall_lost=lost, recall_regained=reg,
+                        recall_regained_min=final[s].min() - base.max(),
+                        recall_regained_max=final[s].max() - base.min(),
+                        recovery=reg / lost))
 pd.DataFrame(rec).to_csv(OUT / "recovery.csv", index=False)
 
 # ---- Maintenance cost (seconds, per repetition) ------------------------------------------
