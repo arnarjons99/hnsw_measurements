@@ -2,7 +2,7 @@
 
 The repetition (n=3) is the unit of replication; no significance tests are applied.
 Outputs (results/aj/analysis/): summary_table.csv, recovery.csv, maintenance_cost.csv,
-<metric>_vs_round.png.
+<metric>_vs_round.png, recovery_cost.png.
 """
 import glob
 from pathlib import Path
@@ -124,6 +124,34 @@ def figure(col, ylabel):
 for col, ylabel in METRICS.items():
     if col != "dead_tuples":  # deterministic (50k per round); table only
         figure(col, ylabel)
+
+def recovery_cost_figure():
+    """Cost-effectiveness scatter: time per round vs recall regained; bars = min-max over repetitions."""
+    rec_df, cost_df = pd.read_csv(OUT / "recovery.csv"), pd.read_csv(OUT / "maintenance_cost.csv")
+    names = {"glove": "GloVe", "sift1m": "SIFT1M"}
+    short = {"vacuum": "VACUUM", "reindex": "REINDEX", "reindex + vacuum": "REINDEX + VACUUM"}
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.6))
+    for ax, ds in zip(axes, DATASETS):
+        r = rec_df[rec_df.dataset == ds].set_index("strategy").loc[STRATS]
+        c = cost_df[cost_df.dataset == ds].set_index("strategy").loc[STRATS]
+        for s in STRATS:
+            x, y = c.loc[s, "per_round_s_mean"], r.loc[s, "recall_regained"]
+            ax.errorbar(x, y, xerr=[[x - c.loc[s, "per_round_s_min"]], [c.loc[s, "per_round_s_max"] - x]],
+                        yerr=[[y - r.loc[s, "recall_regained_min"]], [r.loc[s, "recall_regained_max"] - y]],
+                        color=style[s]["color"], marker=style[s]["marker"], ms=7, capsize=4, lw=1.2, alpha=0.85,
+                        label=short[s])
+        ax.set(title=names[ds], xlabel="Maintenance time per round (s)", ylabel="Recall@10 gain over no maintenance")
+        ax.set_xlim(left=0)
+        ax.set_ylim(bottom=0)
+        ax.grid(alpha=0.25)
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=3, fontsize=12, frameon=False)
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    fig.savefig(OUT / "recovery_cost.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+recovery_cost_figure()
 
 for f in ("recovery", "maintenance_cost"):
     print(f"\n{f}")
