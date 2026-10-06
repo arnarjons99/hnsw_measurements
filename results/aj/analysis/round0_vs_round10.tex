@@ -1,0 +1,24 @@
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Round 0 versus round 10. Round 0 shows the mean; round 10 shows mean (min--max) over three repetitions.}
+\label{tab:round0-vs-round10}
+\begin{tabular}{lcccccc}
+\hline
+& \multicolumn{2}{c}{\textbf{Recall@10}} & \multicolumn{2}{c}{\textbf{p95 (ms)}} & \multicolumn{2}{c}{\textbf{Index size (MiB)}} \\
+\textbf{Strategy} & Round 0 & Round 10 & Round 0 & Round 10 & Round 0 & Round 10 \\
+\hline
+\multicolumn{7}{l}{\textit{GloVe}} \\
+No maintenance & 0.684 & 0.631 (0.627--0.636) & 2.46 & 3.07 (2.94--3.15) & 796 & 1592 (1592--1592) \\
+VACUUM & 0.682 & 0.694 (0.692--0.695) & 2.59 & 2.85 (2.60--3.23) & 796 & 876 (876--876) \\
+REINDEX & 0.684 & 0.682 (0.680--0.684) & 2.59 & 2.68 (2.58--2.77) & 796 & 811 (811--811) \\
+REINDEX + VACUUM & 0.683 & 0.684 (0.682--0.687) & 2.56 & 2.61 (2.55--2.74) & 796 & 798 (798--798) \\
+\hline
+\multicolumn{7}{l}{\textit{SIFT1M}} \\
+No maintenance & 0.984 & 0.973 (0.972--0.974) & 1.47 & 1.84 (1.78--1.91) & 409 & 812 (812--812) \\
+VACUUM & 0.984 & 0.989 (0.988--0.990) & 1.42 & 1.48 (1.44--1.51) & 409 & 450 (450--450) \\
+REINDEX & 0.985 & 0.984 (0.982--0.986) & 1.46 & 1.48 (1.42--1.52) & 409 & 423 (423--424) \\
+REINDEX + VACUUM & 0.984 & 0.984 (0.983--0.985) & 1.45 & 1.55 (1.39--1.73) & 409 & 411 (411--411) \\
+\hline
+\end{tabular}
+\end{table}

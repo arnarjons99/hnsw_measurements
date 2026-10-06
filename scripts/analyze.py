@@ -2,7 +2,8 @@
 
 The repetition (n=3) is the unit of replication; no significance tests are applied.
 Outputs (results/aj/analysis/): summary_table.csv, recovery.csv, maintenance_cost.csv,
-<metric>_vs_round.png, recovery_cost.png.
+<metric>_vs_round.png, recovery_cost.png, round0_vs_round10.tex,
+maintenance_table.tex.
 """
 import glob
 from pathlib import Path
@@ -152,6 +153,69 @@ def recovery_cost_figure():
 
 
 recovery_cost_figure()
+def round0_vs_round10_table():
+    """LaTeX table of round 0 vs final round (recall, p95, index size); round-final cells are mean (min-max)."""
+    d = pd.read_csv(OUT / "summary_table.csv").set_index(["dataset", "strategy", "metric"])
+    names = {"glove": "GloVe", "sift1m": "SIFT1M"}
+    rows = {"baseline": "No maintenance", "vacuum": "VACUUM", "reindex": "REINDEX",
+            "reindex + vacuum": "REINDEX + VACUUM"}
+    cols = [("recall_at_10", 3, True), ("latency_p95_ms", 2, True), ("index_mb", 0, True)]
+    out = [r"\begin{table}[H]", r"\centering", r"\footnotesize",
+           r"\caption{Round 0 versus round %d. Round 0 shows the mean; round %d shows mean (min--max) over three "
+           r"repetitions.}" % (LAST, LAST), r"\label{tab:round0-vs-round%d}" % LAST,
+           r"\begin{tabular}{l" + "cc" * len(cols) + "}", r"\hline",
+           r"& \multicolumn{2}{c}{\textbf{Recall@10}} & \multicolumn{2}{c}{\textbf{p95 (ms)}} "
+           r"& \multicolumn{2}{c}{\textbf{Index size (MiB)}} \\",
+           r"\textbf{Strategy} & Round 0 & Round %d & Round 0 & Round %d & Round 0 & Round %d \\" % (LAST, LAST, LAST)]
+    for ds in DATASETS:
+        out += [r"\hline", r"\multicolumn{7}{l}{\textit{%s}} \\" % names[ds]]
+        for s, label in rows.items():
+            cells = [label]
+            for m, nd, rng in cols:
+                r = d.loc[(ds, s, m)]
+                cells.append(f"{r.round0_mean:.{nd}f}")
+                last = f"{r[f'round{LAST}_mean']:.{nd}f}"
+                if rng:
+                    last += f" ({r[f'round{LAST}_min']:.{nd}f}--{r[f'round{LAST}_max']:.{nd}f})"
+                cells.append(last)
+            out.append(" & ".join(cells) + r" \\")
+    out += [r"\hline", r"\end{tabular}", r"\end{table}"]
+    (OUT / "round0_vs_round10.tex").write_text("\n".join(out) + "\n")
+
+
+round0_vs_round10_table()
+
+def maintenance_table():
+    """LaTeX table of recall gain, % of lost recall regained, and maintenance time per strategy."""
+    rec_df, cost_df = pd.read_csv(OUT / "recovery.csv"), pd.read_csv(OUT / "maintenance_cost.csv")
+    names = {"glove": "GloVe", "sift1m": "SIFT1M"}
+    short = {"vacuum": "VACUUM", "reindex": "REINDEX", "reindex + vacuum": "REINDEX + VACUUM"}
+
+    def mmm_cell(r, p, nd):
+        return f"{r[p + '_mean']:.{nd}f} ({r[p + '_min']:.{nd}f}--{r[p + '_max']:.{nd}f})"
+
+    out = [r"\begin{table}[H]", r"\centering", r"\footnotesize",
+           r"\caption{Maintenance effectiveness and cost after %d churn rounds. Recall gain is over no "
+           r"maintenance at round %d, and \%% regained is relative to the recall lost from round 0 to %d. Values "
+           r"are mean (min--max) over three repetitions; \%% regained is calculated from the means.}" % (LAST, LAST, LAST),
+           r"\label{tab:maintenance}", r"\begin{tabular}{lcccc}", r"\hline",
+           r"\textbf{Strategy} & \textbf{Recall@10 gain} & \textbf{\% regained} & "
+           r"\textbf{Time per round (s)} & \textbf{Total time (s)} \\"]
+    for ds in DATASETS:
+        r0 = rec_df[rec_df.dataset == ds].iloc[0]
+        out += [r"\hline", r"\multicolumn{5}{l}{\textit{%s} (recall lost without maintenance: %.3f)} \\"
+                % (names[ds], r0.recall_lost)]
+        for s in STRATS:
+            r = rec_df[(rec_df.dataset == ds) & (rec_df.strategy == s)].iloc[0]
+            c = cost_df[(cost_df.dataset == ds) & (cost_df.strategy == s)].iloc[0]
+            gain = f"{r.recall_regained:.3f} ({r.recall_regained_min:.3f}--{r.recall_regained_max:.3f})"
+            out.append(" & ".join([short[s], gain, f"{100 * r.recovery:.0f}\\%",
+                                   mmm_cell(c, "per_round_s", 0), mmm_cell(c, "total_s", 0)]) + r" \\")
+    out += [r"\hline", r"\end{tabular}", r"\end{table}"]
+    (OUT / "maintenance_table.tex").write_text("\n".join(out) + "\n")
+
+
+maintenance_table()
 
 for f in ("recovery", "maintenance_cost"):
     print(f"\n{f}")
