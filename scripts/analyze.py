@@ -1,7 +1,7 @@
 """Descriptive analysis of run0: metrics vs churn round, recovery by maintenance, maintenance cost.
 
 The repetition (n=3) is the unit of replication; no significance tests are applied.
-Outputs (results/aj/analysis/): summary_table.csv, recovery.csv, maintenance_cost.csv,
+Outputs (results/aj/analysis/): summary_table.csv, recovery.csv, maintenance_cost.csv, p95_across_rounds.csv,
 <metric>_vs_round.png, recovery_cost.png, round0_vs_round10.tex,
 maintenance_table.tex.
 """
@@ -90,6 +90,16 @@ for ds in DATASETS:
         cost.append(dict(dataset=ds, strategy=s, **mmm(per_round, "per_round_s"), **mmm(total, "total_s")))
 pd.DataFrame(cost).to_csv(OUT / "maintenance_cost.csv", index=False)
 
+# ---- p95 latency across rounds: min/max/avg of the per-round mean over repetitions --------
+p95 = []
+for ds in DATASETS:
+    for s in ORDER:
+        per_round = series(ds, s).groupby("round").latency_p95_ms.mean()
+        p95.append(dict(dataset=ds, strategy=s, min_ms=per_round.min(), max_ms=per_round.max(),
+                        avg_ms=per_round.mean(), round_of_min=per_round.idxmin(),
+                        round_of_max=per_round.idxmax()))
+pd.DataFrame(p95).to_csv(OUT / "p95_across_rounds.csv", index=False)
+
 # ---- Figures: mean over repetitions with min-max band ------------------------------------
 # Distinct colour (Okabe-Ito), marker and line style per strategy so grayscale prints stay readable.
 style = {"baseline": dict(color="#000000", marker="o", ls="-"),
@@ -159,10 +169,10 @@ def round0_vs_round10_table():
     names = {"glove": "GloVe", "sift1m": "SIFT1M"}
     rows = {"baseline": "No maintenance", "vacuum": "VACUUM", "reindex": "REINDEX",
             "reindex + vacuum": "REINDEX + VACUUM"}
-    cols = [("recall_at_10", 3, True), ("latency_p95_ms", 2, True), ("index_mb", 0, True)]
+    cols = [("recall_at_10", 3, True), ("latency_p95_ms", 2, True), ("index_mb", 0, False)]
     out = [r"\begin{table}[H]", r"\centering", r"\footnotesize",
-           r"\caption{Round 0 versus round %d. Round 0 shows the mean; round %d shows mean (min--max) over three "
-           r"repetitions.}" % (LAST, LAST), r"\label{tab:round0-vs-round%d}" % LAST,
+           r"\caption{Round 0 versus round %d. Round 0 shows the mean; round %d shows mean over three "
+           r"repetitions, with min--max ranges for recall and p95.}" % (LAST, LAST), r"\label{tab:round0-vs-round%d}" % LAST,
            r"\begin{tabular}{l" + "cc" * len(cols) + "}", r"\hline",
            r"& \multicolumn{2}{c}{\textbf{Recall@10}} & \multicolumn{2}{c}{\textbf{p95 (ms)}} "
            r"& \multicolumn{2}{c}{\textbf{Index size (MiB)}} \\",
@@ -195,12 +205,12 @@ def maintenance_table():
         return f"{r[p + '_mean']:.{nd}f} ({r[p + '_min']:.{nd}f}--{r[p + '_max']:.{nd}f})"
 
     out = [r"\begin{table}[H]", r"\centering", r"\footnotesize",
-           r"\caption{Maintenance effectiveness and cost after %d churn rounds. Recall gain is over no "
-           r"maintenance at round %d, and \%% regained is relative to the recall lost from round 0 to %d. Values "
-           r"are mean (min--max) over three repetitions; \%% regained is calculated from the means.}" % (LAST, LAST, LAST),
+           r"\caption{Maintenance effectiveness and cost after %d churn rounds. Recall gain is relative to no "
+           r"maintenance at round %d; \%% regained is the fraction of recall loss recovered. Values are means over "
+           r"three repetitions; maintenance times include min--max ranges.}" % (LAST, LAST),
            r"\label{tab:maintenance}", r"\begin{tabular}{lcccc}", r"\hline",
            r"\textbf{Strategy} & \textbf{Recall@10 gain} & \textbf{\% regained} & "
-           r"\textbf{Time per round (s)} & \textbf{Total time (s)} \\"]
+           r"\textbf{Maintenance/round (s)} & \textbf{Total maintenance (s)} \\"]
     for ds in DATASETS:
         r0 = rec_df[rec_df.dataset == ds].iloc[0]
         out += [r"\hline", r"\multicolumn{5}{l}{\textit{%s} (recall lost without maintenance: %.3f)} \\"
@@ -208,7 +218,7 @@ def maintenance_table():
         for s in STRATS:
             r = rec_df[(rec_df.dataset == ds) & (rec_df.strategy == s)].iloc[0]
             c = cost_df[(cost_df.dataset == ds) & (cost_df.strategy == s)].iloc[0]
-            gain = f"{r.recall_regained:.3f} ({r.recall_regained_min:.3f}--{r.recall_regained_max:.3f})"
+            gain = f"{r.recall_regained:.3f}"
             out.append(" & ".join([short[s], gain, f"{100 * r.recovery:.0f}\\%",
                                    mmm_cell(c, "per_round_s", 0), mmm_cell(c, "total_s", 0)]) + r" \\")
     out += [r"\hline", r"\end{tabular}", r"\end{table}"]
